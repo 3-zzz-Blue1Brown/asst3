@@ -30,6 +30,8 @@ struct GlobalConstants {
 
     int imageWidth;
     int imageHeight;
+    float invWidth;
+    float invHeight;
     float* imageData;
 };
 
@@ -55,6 +57,7 @@ __constant__ float  cuConstColorRamp[COLOR_MAP_SIZE][3];
 // file simpler and to seperate code that should not be modified
 #include "noiseCuda.cu_inl"
 #include "lookupColor.cu_inl"
+#include "circleBoxTest.cu_inl"
 
 
 // kernelClearImageSnowflake -- (CUDA device code)
@@ -579,6 +582,8 @@ CudaRenderer::setup() {
     params.numCircles = numCircles;
     params.imageWidth = image->width;
     params.imageHeight = image->height;
+    params.invWidth = 1.f / image->width;
+    params.invHeight = 1.f / image->height;
     params.position = cudaDevicePosition;
     params.velocity = cudaDeviceVelocity;
     params.color = cudaDeviceColor;
