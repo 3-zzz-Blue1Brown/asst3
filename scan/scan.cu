@@ -27,6 +27,26 @@ static inline int nextPow2(int n) {
     return n;
 }
 
+__global__ void calcpre(int *array, int offset) {
+    int id = threadIdx.x + blockDim.x * blockIdx.x;
+    int ai = offset * (2 * id + 1) - 1;
+    int bi = offset * (2 * id + 2) - 1;
+    array[bi] += array[ai];
+}
+
+__global__ void recovery(int *array, int offset) {
+    int id = threadIdx.x + blockDim.x * blockIdx.x;
+    int ai = offset * (2 * id + 1) - 1;
+    int bi = offset * (2 * id + 2) - 1;
+    int tmp = array[ai];
+    array[ai] = array[bi];
+    array[bi] += tmp;
+}
+
+__global__ void clear_last(int * array, int N) {
+    array[N - 1] = 0;
+}
+
 // exclusive_scan --
 //
 // Implementation of an exclusive scan on global memory array `input`,
@@ -53,9 +73,41 @@ void exclusive_scan(int* input, int N, int* result)
     // on the CPU.  Your implementation will need to make multiple calls
     // to CUDA kernel functions (that you must write) to implement the
     // scan.
+    const int blocksize = 512;
+    
+    // up sweep
+    int offset = 1;
+    int d = N / 2;
+    while (d > blockSize) {
+        int gridSize = d / blockSize;
+        calcpre<<<gridSize, blockSize>>>(result, offset);
+        offset *= 2;
+        d /= 2;
+    }
+    while (d > 0) {
+        calcpre<<<1, d>>>(result, offset);
+        offset *= 2;
+        d /= 2;
+    }
 
+    // clear the last element
+    clear_last<<<1, 1>>>(result, N);
 
+    // down sweep
+    d = 1;
+    while (d <= blockSize) {
+        offset /= 2;
+        recovery<<<1, d>>>(result, offset);
+        d *= 2;
+    }
+    while (d < N) {
+        offset /= 2;
+        int gridSize = d / blockSize;
+        recovery<<<gridSize, blockSize>>>(result, offset);
+        d *= 2;
+    }
 }
+
 
 
 //
